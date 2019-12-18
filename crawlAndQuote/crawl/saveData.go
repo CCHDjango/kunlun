@@ -50,3 +50,7 @@ func saveAsRedis(address string ,port string ,password int ,content string ,data
 	// param content : 需要保存到数据库的内容
 	// param dataFrom : 数据来源内容
 }
+
+func saveDefault(content string){
+	// fuction : 用来占位置的保存爬虫内容的函数
+}
