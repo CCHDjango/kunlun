@@ -13,7 +13,7 @@
 
 3,存储问题
 
-    缓存保留该站点最近一次的内容，其他内容持久化到硬盘，包括寸金数据库，保存成文件
+    缓存保留该站点最近一次的内容，其他内容持久化到硬盘，包括存进数据库，保存成文件
 
 4,断点续爬
 
@@ -34,12 +34,22 @@
 
 运行时，用for循环对crawlListStruct的funcList进行遍历，用goroutine对每个XXrun()进行运行
 
+数据库保存一天的数据，每天晚上10点删除数据库原来的数据，然后开始写入新的数据，删除数据不在这个目录内处理，有一个外部统筹crawl和quote的模块的程序
+
 #### 爬取的站点
 
-1，[新华社](http://www.xinhuanet.com/)
+1，[新华社](http://www.xinhuanet.com/)         ID : 1
 
-2，[中国网](http://www.china.com.cn/)
+2，[中国网](http://www.china.com.cn/)          ID : 2
 
-3，[新浪财经](https://finance.sina.com.cn/)
+3，[新浪财经](https://finance.sina.com.cn/)    ID : 3
 
-4，[国家统计局](http://wap.stats.gov.cn/jd/201912/t20191210_1716707.html)
+4，[国家统计局](http://wap.stats.gov.cn/jd/201912/t20191210_1716707.html) ID : 4
+
+5，[第一财经](https://www.yicai.com/)          ID : 5
+
+6，[中国人民共和国中央人民政府](http://www.gov.cn/index.htm)                ID : 6
+
+7，[cnBeta.com](https://www.cnbeta.com/)      ID : 7
+
+8, [鲸鱼钱包](https://whale-alert.io/)         ID: 8
