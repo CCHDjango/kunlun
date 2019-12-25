@@ -11,6 +11,7 @@
 */
 package crawl
 
+
 type engine interface{
 	timer()
 	saveContentId(id string)

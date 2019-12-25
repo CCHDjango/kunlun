@@ -9,11 +9,15 @@
 */
 package crawl
 
+import "errors"
+
 type errorInterface interface{
 
 }
 
 // 视线错误函数的列表
 type errorStruct struct{
-
+	//TestError error
 }
+
+var testError error = errors.New("测试错误类型")
