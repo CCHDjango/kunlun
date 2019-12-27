@@ -128,32 +128,35 @@ func (c *crawlListStruct)govNewsCrollRun(){
 		var tempAddress string = strings.Join([]string{govNewsCrollAddress,".htm"},strconv.Itoa(i))
 		var tempCheckSame bool
 
-		respAll,err := govNewsCrollHTMLString(tempAddress)
-		if err!=nil{
-			return
-		}
-		//titleList := govNewsCrollAllTile(respAll)
-		hrefList := govNewsCrollHrefContent(respAll)
-
-		for _,href := range hrefList{
-			respOne ,err:= govNewsCrollHTMLString(href)
+		go func(tempAddress string,i int,wg *sync.WaitGroup){
+			defer wg.Done()
+			respAll,err := govNewsCrollHTMLString(tempAddress)
 			if err!=nil{
-				continue
+				return
 			}
-			date,newsContent,err := govNewsCrollContent(respOne)
-			tempCheckSame= govNewsCrollCheckSame(newsContent)
-			// 过滤无效消息
-			if len(newsContent)<4 || err!=nil{
-				continue
-			}
-			saveDefault(newsContent)                      // TODO : 正式运行需要更改保存函数
-			saveDefault(date)
-		}
+			//titleList := govNewsCrollAllTile(respAll)
+			hrefList := govNewsCrollHrefContent(respAll)
 
-		// 检查内容查重,如果检查到查重则推出循环，然后等待还没有入库的数据线程结束
-		if tempCheckSame==true{
-			break
-		}
+			for _,href := range hrefList{
+				respOne ,err:= govNewsCrollHTMLString(href)
+				if err!=nil{
+					continue
+				}
+				date,newsContent,err := govNewsCrollContent(respOne)
+				tempCheckSame= govNewsCrollCheckSame(newsContent)
+				// 检查内容查重,如果检查到查重则推出循环，然后等待还没有入库的数据线程结束
+				if tempCheckSame==true{
+					break
+				}
+				// 过滤无效消息
+				if len(newsContent)<4 || err!=nil{
+					continue
+				}
+				saveDefault(newsContent)                      // TODO : 正式运行需要更改保存函数
+				saveDefault(date)
+			}
+		}(tempAddress,i,&go_sync)
+		
 
 	}
 	
