@@ -2,14 +2,13 @@
 爬取中华人民共和国人民网，新闻滚动
 开发人：陈常鸿
 创建时间：2019-12-17
-最后一次修改时间：2019-12-24
+最后一次修改时间：2019-12-27
 
 功能：
 网址示例：http://sousuo.gov.cn/column/30611/251.htm
 第一次运行，爬取所有文章，之后的运行，从第一页开始做对比，直到匹配到数据库中最新的新闻标题
 爬取新闻到数据库新闻最新的位置。
 注意：每个新闻的内容页面结构可能都不一样，有些新闻没有文字只有图片
-TODO :
 2019-12-21该新闻滚动页数达到5K+，一定要用多线程实现
 保存文件按照时间切分保存成文件
 
@@ -38,26 +37,25 @@ func govNewsCrollHTMLString(address string) (*http.Response,error){
 	return resp,err
 }
 
-func govNewsCrollAllTile(resp *http.Response)([]string){
+func govNewsCrollTile(resp *http.Response)(string,error){
 	// function : 传入resp的Body内容，然后获取文章的题目和时间
 	// param respBody : HTML对象
-	// return : 文章列表和时间列表
-	var titleList []string
+	// return : 文章大标题
+	var title string
 	doc,err:=goquery.NewDocumentFromReader(resp.Body)
 	if err!=nil{
 		fmt.Println("解析中华人民共和国人民网HTML错误",err)
+		return "",err
 	}
 	
 	// 爬取文章的题目和时间
-	doc.Find("li").Each(func(i int,s *goquery.Selection){
-		title := s.Find("a").Text()
-		date := s.Find("span").Text()
-		if i<19{
-			fmt.Printf("Review %d: %s - %s\n", i, title, date)
-			titleList=append(titleList,title)
-		}
+	doc.Find("div").Each(func(i int,s *goquery.Selection){
+		tempTitle := s.Find("h1").Text()
+		if len(tempTitle)!=0{
+			title=string([]byte(tempTitle[9:]))
+		} 
     })
-    return titleList
+    return title,err
 }
 
 func govNewsCrollHrefContent(resp *http.Response)([]string){
