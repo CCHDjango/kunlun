@@ -2,7 +2,7 @@
 爬取中华人民共和国人民网，新闻滚动
 开发人：陈常鸿
 创建时间：2019-12-17
-最后一次修改时间：2019-12-27
+最后一次修改时间：2019-12-29
 
 功能：
 网址示例：http://sousuo.gov.cn/column/30611/251.htm
@@ -123,6 +123,11 @@ func (c *crawlListStruct)govNewsCrollRun(){
 	// function : 总运行启动函数
 	fmt.Println("开始爬取中华人民共和国新闻滚动")
 	var go_sync sync.WaitGroup
+	session ,err:= settingMongo("127.0.0.1","27017","")
+	if err!=nil{
+		fmt.Println("连接数据库报错 : ",err)
+		return
+	}
 	for i:=0;i<govNewsCrollAllPages;i++{
 		go_sync.Add(1)
 		var tempAddress string = strings.Join([]string{govNewsCrollAddress,".htm"},strconv.Itoa(i))
@@ -142,6 +147,10 @@ func (c *crawlListStruct)govNewsCrollRun(){
 				if err!=nil{
 					continue
 				}
+				title,err :=govNewsCrollTile(respOne)
+				if err!=nil{
+					continue
+				}
 				date,newsContent,err := govNewsCrollContent(respOne)
 				tempCheckSame= govNewsCrollCheckSame(newsContent)
 				// 检查内容查重,如果检查到查重则推出循环，然后等待还没有入库的数据线程结束
@@ -152,8 +161,7 @@ func (c *crawlListStruct)govNewsCrollRun(){
 				if len(newsContent)<4 || err!=nil{
 					continue
 				}
-				saveDefault(newsContent)                      // TODO : 正式运行需要更改保存函数
-				saveDefault(date)
+				saveAsMongoDB(session,"crawl","govNews",title,newsContent ,date,6,"id")
 			}
 		}(tempAddress,i,&go_sync)
 		
