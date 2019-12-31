@@ -7,7 +7,9 @@
 
 当天时间判断：每次爬取HTML完成后，每条新闻都与当天的日期做一个比较，如果不是当天的新闻，爬虫退出，不再爬取后面的新闻
 
-最后一次修改的时间：2019-12-30
+不在外部使用死循环，直接在爬虫启动中使用循环爬取，外部只需要调用一个启动文件即可
+
+最后一次修改的时间：2019-12-31
 */
 package main
 
@@ -159,52 +161,57 @@ func saveAsMongoDB(session *mgo.Session ,title string,content string ,time strin
 
 func main(){
 	// function : 总运行启动函数
-	fmt.Println("开始爬取中华人民共和国新闻滚动",time.Now())
 	session,err:=mgo.Dial(savePath)
 	if err!=nil{
 		fmt.Println("连接数据库报错 : ",err)
 	}
-	for i:=0;i<allPages;i++{
-		var tempAddress string = strings.Join([]string{govNewsCrollAddress,".htm"},strconv.Itoa(i))
-		go_sync.Add(1)
-		go func(tempAddress string,i int,wg *sync.WaitGroup){
-			defer wg.Done()
-			respAll ,err:= govNewsCrollHTMLString(tempAddress)
-			if err!=nil{
-				return
-			}
-			hrefList := govNewsCrollHrefContent(respAll)
-
-			for _,href := range hrefList{
-				respOne ,err:= govNewsCrollHTMLString(href)
+	// 无限爬虫循环
+	for {
+		fmt.Println("开始爬取中华人民共和国新闻滚动",time.Now())
+		for i:=0;i<allPages;i++{
+			var tempAddress string = strings.Join([]string{govNewsCrollAddress,".htm"},strconv.Itoa(i))
+			go_sync.Add(1)
+			go func(tempAddress string,i int,wg *sync.WaitGroup){
+				defer wg.Done()
+				respAll ,err:= govNewsCrollHTMLString(tempAddress)
 				if err!=nil{
-					continue
+					return
 				}
-				title,err:=govNewsCrollTile(respOne)
+				hrefList := govNewsCrollHrefContent(respAll)
 
-				if err!=nil{
-					continue
+				for _,href := range hrefList{
+					respOne ,err:= govNewsCrollHTMLString(href)
+					if err!=nil{
+						continue
+					}
+					title,err:=govNewsCrollTile(respOne)
+
+					if err!=nil{
+						continue
+					}
+
+					newsDate,newsContent,err := govNewsCrollContent(respOne)
+					// 过滤无效消息
+					if len(newsContent)<4 || err!=nil{
+						continue
+					}
+
+					if !checkDay(newsDate) || !checkSame(title){
+						// 不是当天的新闻或者数据库有重复，都会退出循环
+						break
+					}
+
+					saveAsMongoDB(session,title,newsContent,newsDate,6,strconv.Itoa(i))
 				}
+			}(tempAddress,i,&go_sync)
 
-				newsDate,newsContent,err := govNewsCrollContent(respOne)
-				// 过滤无效消息
-				if len(newsContent)<4 || err!=nil{
-					continue
-				}
-
-				if !checkDay(newsDate) || !checkSame(title){
-					// 不是当天的新闻或者数据库有重复，都会退出循环
-					break
-				}
-
-				saveAsMongoDB(session,title,newsContent,newsDate,6,strconv.Itoa(i))
-			}
-		}(tempAddress,i,&go_sync)
-
-		time.Sleep(time.Second * 1)
-		fmt.Println("准备关闭线程",i)
-		
+			time.Sleep(time.Second * 1)
+			fmt.Println("准备关闭线程",i)
+			
+		}
+		go_sync.Wait()
+		fmt.Println("爬取中华人民共和国新闻滚动结束",time.Now())
+		time.Sleep(time.Second * 1800)
 	}
-	go_sync.Wait()
-	fmt.Println("爬取中华人民共和国新闻滚动结束",time.Now())
+	
 }
