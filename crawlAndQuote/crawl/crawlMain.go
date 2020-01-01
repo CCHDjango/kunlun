@@ -153,6 +153,30 @@ func checkDay(date string)(bool){
 	}
 }
 
+func ctrlDataset(session *mgo.Session,date string)(error){
+	// function : 控制数据库，爬虫的话，只保留过去一天的数据，也就是昨天的数据保存之后，当今天过完后也就是12点时，把昨天的数据删除
+	//            当本地时间和数据库的最新时间不一致时候
+	// param sessioin : 数据库指针
+	// param date : 最新一条新闻时间的日期
+	// return : 返回查询数据库的错误
+	type TempStruct struct{
+		Date string `bson:"date"`
+		Content string `bson:"content`
+		Title string `bson:"title"`
+		Id string `bson:"id"`
+		From int `bson:"from"`
+	}
+	var tempS []TempStruct
+	c:=session.DB("crawl").C("govNews")
+	err:=c.Find(nil).Sort("date").Limit(1).All(&tempS)
+	// 判断数据库里面的数据是否与当天的时间一致
+	if strings.Index(tempS[0].date,date)!=-1{
+		c.RemoveAll(bson.M{"date": date})
+	}
+	
+	return err
+}
+
 func saveAsMongoDB(session *mgo.Session ,title string,content string ,time string ,dataFrom int,id string){
 	// function : 保存数据到mongo数据库
 	// 读表
@@ -203,6 +227,11 @@ func main(){
 						break
 					}
 
+					err:=ctrlDataset(session,nowTime("day"))
+					if err!=nil{
+						// 查询数据库失败
+						continue
+					}
 					saveAsMongoDB(session,title,newsContent,newsDate,6,strconv.Itoa(i))
 				}
 			}(tempAddress,i,&go_sync)
