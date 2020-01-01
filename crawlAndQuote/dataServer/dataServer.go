@@ -10,12 +10,24 @@
 消息中心，如果模块报错，发送消息到指定的地方，比如钉钉，微信，邮箱等，如果是已知情况则可以自动重启重新运行，位置情况则发消息手动重启服务
 服务接口有两个，一个是下载一天的数据，包括一天的行情和一天的新闻
 另一个接口是前端请求数据展示的接口，前端展示请求的接口请求的是一天内30分钟的K线，以及全部的新闻舆情数据
+
+请求返回的数据是：
+{
+	"news":[
+		{"date":"","content":"","title":""},
+		{"date":"","content":"","title":""}
+	],
+	"quote":[
+		{"date":"","open":"","high":"","low":"","close":"","frequency":""},
+		{"date":"","open":"","high":"","low":"","close":"","frequency":""}
+	]
+}
 最后一次修改时间：2020-1-1
 
 注意：此代码没有做过多的设计，在业务没有确定的情况下，不要做过多的设计，经济最优原则
 在实现功能的条件下，用最短的时间，最简单的实现方法
 */
-package main
+package dataServer
 
 import "fmt"
 import "github.com/gin-gonic/gin"
@@ -31,7 +43,7 @@ func frontServer(context *gin.Context){
 
 func dataServer(context *gin.Context){
 	// function : 数据请求服务
-	fmt.Println("数据请求")
+	fmt.Println("全数据请求")
 	context.JSON(200,gin.H{
 		"code":200,
 		"success":true,
@@ -40,16 +52,16 @@ func dataServer(context *gin.Context){
 }
 
 func getFrontData(frontChan chan interface{}){
-	// function :从数据库查询前端展示需要的数据
+	// function :从数据库查询前端展示需要的数据，一天比特币的半小时行情，以及当天的新闻
 	// param frontChan : 数据管道，把前端展示的数据从管道传出去再发送到客户端
 }
 
 func getSaveData(SDChan chan interface{}){
-	// function : 从数据库查询所有历史数据需要的数据
+	// function : 从数据库查询所有历史数据需要的数据，一天的比特币一分钟行情，以及当天的新闻
 	// param SDChan : 数据管道，把保存历史数据从管道传出去到客户端
 }
 
-func main(){
+func dataMain(){
 	fmt.Println("启动数据服务")
 	// Engin指针
     router := gin.Default()
