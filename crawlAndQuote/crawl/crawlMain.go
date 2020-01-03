@@ -9,9 +9,9 @@
 
 不在外部使用死循环，直接在爬虫启动中使用循环爬取，外部只需要调用一个启动文件即可
 
-最后一次修改的时间：2020-1-1
+最后一次修改的时间：2020-1-3
 
-TODO : 	查重还没有写
+TODO : 	查重还没有写，从数据库查取最新的时间，然后和爬取到最新的新闻的时间做对比
 */
 package main
 
@@ -31,7 +31,6 @@ var allPages int = 5                                                      // 一
 var savePath string = ""                                                  // 如果是保存成文件就是文件地址，如果是数据库就是数据库地址
 var latest string = ""                                                    // 当天的日期
 var go_sync sync.WaitGroup
-
 
 func govNewsCrollHTMLString(address string) (*http.Response ,error){
 	// function : 获取html的代码
@@ -125,10 +124,24 @@ func govNewsCrollContent(resp *http.Response)(string,string,error){
 	return date,content,err
 }
 
-func checkSame(identity string)(bool){
+func checkSame(session *mgo.Session,identity string)(bool,error){
 	// function : 内容查重并检查是否是最后一个新闻，如果是最后一条或者是重复内容消息则终止
 	// param identity : 用于查重的字符串内容或者用时间,为true表示没有重复，为false表示内容已存在
-	return true
+	type TempStruct struct{
+		Date string `bson:"date"`
+		Content string `bson:"content`
+		Title string `bson:"title"`
+		Id string `bson:"id"`
+		From int `bson:"from"`
+	}
+	var result []TempStruct
+	err:=session.Find(nil).All(&result)
+	for _,i:=range result{
+		if i.Content==identity{
+			return false,nil
+		}
+	}
+	return true,err
 }
 
 func nowTime(m string)(string){
