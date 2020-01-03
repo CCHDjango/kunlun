@@ -1,8 +1,9 @@
 /*
 爬取到的内容持久化到硬盘
+增加功能，用作操作数据的模块
 开发人：陈常鸿
 创建时间：2019-12-15
-最后一次修改时间：2019-12-25
+最后一次修改时间：2020-1-3
 
 功能：
 持久化内容到数据库
@@ -116,4 +117,19 @@ func saveAsRedis(address string ,port string ,password string ,title string,cont
 
 func saveDefault(content string){
 	// fuction : 用来占位置的保存爬虫内容的函数
+}
+
+func mgoInsert(data map[string]interface{}){
+	// function : mongo插入
+	// param data : 需要插入的数据
+}
+
+func mgoDelete(id string){
+	// function : 根据id删除数据库的某一条
+	// param id : id字段
+}
+
+func mgoDeleteAll(tableName string){
+	// function : 一次删除一个表
+	// param tableName : 需要删除的表名
 }
