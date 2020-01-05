@@ -9,7 +9,7 @@
 
 不在外部使用死循环，直接在爬虫启动中使用循环爬取，外部只需要调用一个启动文件即可
 
-最后一次修改的时间：2020-1-3
+最后一次修改的时间：2020-1-5
 
 TODO : 	查重还没有写，从数据库查取最新的时间，然后和爬取到最新的新闻的时间做对比
 */
@@ -28,7 +28,7 @@ import "gopkg.in/mgo.v2"
 var govNewsCrollAddress string = "http://sousuo.gov.cn/column/30611/"     // 257.htm
 var govNewsCrollLastDate string = "0"                                     // 最后一篇文章的时间，如果没有则从数据库读取
 var allPages int = 5                                                      // 一般一天的新闻不会超过5个页面
-var savePath string = ""                                                  // 如果是保存成文件就是文件地址，如果是数据库就是数据库地址
+var savePath string = "localhost:27017"                                   // 如果是保存成文件就是文件地址，如果是数据库就是数据库地址
 var latest string = ""                                                    // 当天的日期
 var go_sync sync.WaitGroup
 
