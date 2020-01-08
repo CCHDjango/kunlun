@@ -22,15 +22,29 @@
 		{"date":"","open":"","high":"","low":"","close":"","frequency":""}
 	]
 }
-最后一次修改时间：2020-1-1
+最后一次修改时间：2020-1-8
 
 注意：此代码没有做过多的设计，在业务没有确定的情况下，不要做过多的设计，经济最优原则
 在实现功能的条件下，用最短的时间，最简单的实现方法
+本来应该是从该程序启动新闻爬虫的，但是在服务器用screen方法另起线程让新闻爬虫运行也一样，所以暂时就使用screen的方式启动爬虫和数据库，服务程序另外再用
+screen启动即可
 */
-package dataServer
+package main
 
 import "fmt"
 import "github.com/gin-gonic/gin"
+import "gopkg.in/mgo.v2"
+
+// 全局变量们 Global Vars
+var mgoURL string = "0.0.0.0:27017"
+var session *mgo.Session
+type newsStruct struct{
+	Date string `bson:"date"`
+	Content string `bson:"content"`
+	Title string `bson:"title"`
+	Id string `bson:"id"`
+	From int `bson:"from"`
+}
 
 func frontServer(context *gin.Context){
 	// function : 前端服务接口服务函数
@@ -51,24 +65,41 @@ func dataServer(context *gin.Context){
 	})
 }
 
-func getFrontData(frontChan chan interface{}){
+func getFrontData(frontChan chan []newsStruct){
 	// function :从数据库查询前端展示需要的数据，一天比特币的半小时行情，以及当天的新闻
 	// param frontChan : 数据管道，把前端展示的数据从管道传出去再发送到客户端
+	var result []newsStruct
+	err:=session.DB("crawl").C("govNews").Find(nil).All(&result)
+	if err!=nil{
+		fmt.Println("查询数据库报错 : ",err)
+	}
 }
 
-func getSaveData(SDChan chan interface{}){
+func getSaveData(SDChan chan []newsStruct){
 	// function : 从数据库查询所有历史数据需要的数据，一天的比特币一分钟行情，以及当天的新闻
 	// param SDChan : 数据管道，把保存历史数据从管道传出去到客户端
+	var result []newsStruct
+	err:=session.DB("crawl").C("govNews").Find(nil).All(&result)
+	if err!=nil{
+		fmt.Println("查询数据库报错 : ",err)
+	}
 }
 
 func dataMain(){
 	fmt.Println("启动数据服务")
+	// 连接数据库
+	session,_=mgo.Dial(mgoURL)
+	
 	// Engin指针
     router := gin.Default()
-    //router := gin.New()
 
 	router.GET("/frontServer", frontServer)
 	router.GET("/dataServer",dataServer)
     // 指定地址和端口号
-    router.Run("localhost:8888")
+	router.Run("0.0.0.0:8888")                    // 如果是云服务改成0.0.0.0:8888
+	
+	// 启动爬虫线程
+	//go crawlRun()
+	
+	// 行情启动方法
 }
