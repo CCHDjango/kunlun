@@ -9,9 +9,9 @@
 
 不在外部使用死循环，直接在爬虫启动中使用循环爬取，外部只需要调用一个启动文件即可
 
-最后一次修改的时间：2020-1-5
+最后一次修改的时间：2020-1-8
 
-TODO : 	查重还没有写，从数据库查取最新的时间，然后和爬取到最新的新闻的时间做对比
+注意 : goquery分析HTML对象，只能分析一次，导致新闻文章的时间和内容无法分析出来
 */
 package main
 
@@ -24,11 +24,12 @@ import "time"
 
 import "github.com/PuerkitoBio/goquery"
 import "gopkg.in/mgo.v2"
+import "gopkg.in/mgo.v2/bson"
 
 var govNewsCrollAddress string = "http://sousuo.gov.cn/column/30611/"     // 257.htm
 var govNewsCrollLastDate string = "0"                                     // 最后一篇文章的时间，如果没有则从数据库读取
 var allPages int = 5                                                      // 一般一天的新闻不会超过5个页面
-var savePath string = "localhost:27017"                                   // 如果是保存成文件就是文件地址，如果是数据库就是数据库地址
+var savePath string = "0.0.0.0:27017"                                   // 如果是保存成文件就是文件地址，如果是数据库就是数据库地址
 var latest string = ""                                                    // 当天的日期
 var go_sync sync.WaitGroup
 
@@ -44,16 +45,23 @@ func govNewsCrollHTMLString(address string) (*http.Response ,error){
 	return resp,err
 }
 
-func govNewsCrollTile(resp *http.Response)(string,error){
+func getMultiSession(resp *http.Response)(*goquery.Document,*goquery.Document,*goquery.Document){
+	// function : 通过网页HTML的对象返回多个goquery的doc对象
+	doc1,err1:=goquery.NewDocumentFromReader(resp.Body)
+	doc2,err2:=goquery.NewDocumentFromReader(resp.Body)
+	doc3,err3:=goquery.NewDocumentFromReader(resp.Body)
+	if err1!=nil || err2!=nil || err3!=nil{
+		fmt.Println("分析goquery的错误 : ",err1,err2,err3)
+		panic("分析goquery的错误")
+	}
+	return doc1,doc2,doc3
+}
+
+func govNewsCrollTile(doc *goquery.Document)(string,error){
 	// function : 传入resp的Body内容，然后获取文章的题目和时间
 	// param respBody : HTML对象
 	// return : 文章列表和时间列表
 	var title string
-	doc,err:=goquery.NewDocumentFromReader(resp.Body)
-	if err!=nil{
-		fmt.Println("解析中华人民共和国人民网HTML错误 文章标题",err)
-		return "",err
-	}
 	
 	// 爬取文章的题目和时间
 	doc.Find("div").Each(func(i int,s *goquery.Selection){
@@ -63,7 +71,7 @@ func govNewsCrollTile(resp *http.Response)(string,error){
 		}
 	})
 	fmt.Println("新闻标题 : ",title)
-    return title,err
+    return title,nil
 }
 
 func govNewsCrollHrefContent(resp *http.Response)([]string){
@@ -91,57 +99,58 @@ func govNewsCrollHrefContent(resp *http.Response)([]string){
 	return hrefList
 }
 
-func govNewsCrollContent(resp *http.Response)(string,string,error){
+func govNewsCrollContent(doc2 *goquery.Document,doc3 *goquery.Document)(string,string,error){
 	// function : 获取具体的文章内容
 	// param address : 具体文章地址链接的HTML对象
 	// return : 文章内容string，这部分和前面的标题都要存进数据库
-	var content string
-	var date string
-	doc,err:=goquery.NewDocumentFromReader(resp.Body)
-	if err!=nil{
-		fmt.Println("解析中华人民共和国人民网 新闻滚动 HTML错误",err)
-		return "","",err
-	}
-	
+	var content string = "x"
+	var date string = nowTime("day")
+
+	// 文章的时间
+	doc2.Find("div[class=pages-date]").Each(func(i int,s *goquery.Selection){
+		date=string([]byte(s.Text()[:16]))
+		fmt.Println("文章的发表时间 : ",s.Text())
+	})
+
 	// 爬取文章的内容和时间
-	doc.Find(".pages_content").Each(func(i int,s *goquery.Selection){
+	doc3.Find(".pages_content").Each(func(i int,s *goquery.Selection){
+		fmt.Println("文章内容 : ",s.Text())
 		// 爬取逻辑
 		title := s.Find("p").Text()
 		// 检查无效打印
         if strings.Index(title,"下一页")!=-1 || strings.Index(title,"上一页")!=-1{
-            return
-        }
-		content=title
+            
+        }else{
+			content=title
+		}
+		
 	})
-	
-	// 文章的时间
-	doc.Find("div[class=pages-date]").Each(func(i int,s *goquery.Selection){
-		date=string([]byte(s.Text()[:16]))
-	})
-	if err!=nil{
-		fmt.Println("错误出现 : ",date,content)
-	}
-	return date,content,err
+
+	return date,content,nil
 }
 
-func checkSame(session *mgo.Session,identity string)(bool,error){
+func checkSame(session *mgo.Session,identity string)(bool){
 	// function : 内容查重并检查是否是最后一个新闻，如果是最后一条或者是重复内容消息则终止
 	// param identity : 用于查重的字符串内容或者用时间,为true表示没有重复，为false表示内容已存在
 	type TempStruct struct{
 		Date string `bson:"date"`
-		Content string `bson:"content`
+		Content string `bson:"content"`
 		Title string `bson:"title"`
 		Id string `bson:"id"`
 		From int `bson:"from"`
 	}
 	var result []TempStruct
-	err:=session.Find(nil).All(&result)
+	err:=session.DB("crawl").C("govNews").Find(nil).All(&result)
+	if err!=nil{
+		fmt.Println("数据库查询错误报错")
+		return false
+	}
 	for _,i:=range result{
 		if i.Content==identity{
-			return false,nil
+			return false
 		}
 	}
-	return true,err
+	return true
 }
 
 func nowTime(m string)(string){
@@ -174,7 +183,7 @@ func ctrlDataset(session *mgo.Session,date string)(error){
 	// return : 返回查询数据库的错误
 	type TempStruct struct{
 		Date string `bson:"date"`
-		Content string `bson:"content`
+		Content string `bson:"content"`
 		Title string `bson:"title"`
 		Id string `bson:"id"`
 		From int `bson:"from"`
@@ -182,8 +191,12 @@ func ctrlDataset(session *mgo.Session,date string)(error){
 	var tempS []TempStruct
 	c:=session.DB("crawl").C("govNews")
 	err:=c.Find(nil).Sort("date").Limit(1).All(&tempS)
+	if len(tempS)==0{
+		// 如果一开始数据库就没有，那么就跳过
+		return nil
+	}
 	// 判断数据库里面的数据是否与当天的时间一致
-	if strings.Index(tempS[0].date,date)!=-1{
+	if strings.Index(tempS[0].Date,date)!=-1{
 		c.RemoveAll(bson.M{"date": date})
 	}
 	
@@ -195,7 +208,7 @@ func saveAsMongoDB(session *mgo.Session ,title string,content string ,time strin
 	// 读表
 	c:=session.DB("crawl").C("govNews")
 	c.Insert(map[string]interface{}{"title":title,"content":content,"date":time,"id":id,"from":dataFrom})   // 插入
-	
+	fmt.Println("插入数据到数据库 : ",title)
 }
 
 func main(){
@@ -223,26 +236,27 @@ func main(){
 					if err!=nil{
 						continue
 					}
-					title,err:=govNewsCrollTile(respOne)
+					doc1,doc2,doc3:=getMultiSession(respOne)
 
-					if err!=nil{
-						continue
-					}
-
-					newsDate,newsContent,err := govNewsCrollContent(respOne)
+					title,_:=govNewsCrollTile(doc1)
+					
+					newsDate,newsContent,err := govNewsCrollContent(doc2,doc3)
 					// 过滤无效消息
-					if len(newsContent)<4 || err!=nil{
+					if len(newsDate)<4 || err!=nil{
+						fmt.Println("无效消息被过滤 : ",newsDate,newsContent,err)
 						continue
 					}
 
-					if !checkDay(newsDate) || !checkSame(title){
+					if !checkDay(newsDate) || !checkSame(session,title){
 						// 不是当天的新闻或者数据库有重复，都会退出循环
+						fmt.Println("不是当天的新闻或者数据库有重复")
 						break
 					}
 
-					err:=ctrlDataset(session,nowTime("day"))
+					err=ctrlDataset(session,nowTime("day"))
 					if err!=nil{
 						// 查询数据库失败
+						fmt.Println("查询数据库失败")
 						continue
 					}
 					saveAsMongoDB(session,title,newsContent,newsDate,6,strconv.Itoa(i))
