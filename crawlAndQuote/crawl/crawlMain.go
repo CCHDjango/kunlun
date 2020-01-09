@@ -9,9 +9,9 @@
 
 不在外部使用死循环，直接在爬虫启动中使用循环爬取，外部只需要调用一个启动文件即可
 
-最后一次修改的时间：2020-1-8
+最后一次修改的时间：2020-1-9
 
-注意 : goquery分析HTML对象，只能分析一次，导致新闻文章的时间和内容无法分析出来
+注意 : goquery分析HTML对象，只能分析一次，导致新闻文章的时间和内容无法分析出来,就算把把HTML对象分成多个对象也没有用
 */
 package main
 
@@ -146,7 +146,7 @@ func checkSame(session *mgo.Session,identity string)(bool){
 		return false
 	}
 	for _,i:=range result{
-		if i.Content==identity{
+		if i.Title==identity{
 			return false
 		}
 	}
