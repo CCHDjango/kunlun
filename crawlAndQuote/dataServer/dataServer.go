@@ -22,7 +22,7 @@
 		{"date":"","open":"","high":"","low":"","close":"","frequency":""}
 	]
 }
-最后一次修改时间：2020-1-8
+最后一次修改时间：2020-1-9
 
 注意：此代码没有做过多的设计，在业务没有确定的情况下，不要做过多的设计，经济最优原则
 在实现功能的条件下，用最短的时间，最简单的实现方法
@@ -32,12 +32,15 @@ screen启动即可
 package main
 
 import "fmt"
+import "sync"
 import "github.com/gin-gonic/gin"
 import "gopkg.in/mgo.v2"
 
 // 全局变量们 Global Vars
 var mgoURL string = "0.0.0.0:27017"
 var session *mgo.Session
+var go_sync sync.WaitGroup
+
 type newsStruct struct{
 	Date string `bson:"date"`
 	Content string `bson:"content"`
@@ -45,14 +48,23 @@ type newsStruct struct{
 	Id string `bson:"id"`
 	From int `bson:"from"`
 }
+var frontChan chan []newsStruct
+var dataChan chan []newsStruct
 
 func frontServer(context *gin.Context){
 	// function : 前端服务接口服务函数
 	fmt.Println("前端服务接口启动")
+	fc:=make(chan []newsStruct)
+	go_sync.Add(1)
+	go getFrontData(fc,&go_sync)
+	c:=<-fc
 	context.JSON(200,gin.H{
 		"code":200,
 		"success":true,
+		"date":c[0].Date,
+		"title":c[0].Title,
 	})
+	go_sync.Wait()
 }
 
 func dataServer(context *gin.Context){
@@ -65,27 +77,32 @@ func dataServer(context *gin.Context){
 	})
 }
 
-func getFrontData(frontChan chan []newsStruct){
+func getFrontData(fc chan []newsStruct,wg *sync.WaitGroup){
 	// function :从数据库查询前端展示需要的数据，一天比特币的半小时行情，以及当天的新闻
-	// param frontChan : 数据管道，把前端展示的数据从管道传出去再发送到客户端
+	defer wg.Done()
 	var result []newsStruct
 	err:=session.DB("crawl").C("govNews").Find(nil).All(&result)
+	fmt.Println("get front data from database : ",result)
 	if err!=nil{
 		fmt.Println("查询数据库报错 : ",err)
+	}else{
+		fc<-result
 	}
 }
 
-func getSaveData(SDChan chan []newsStruct){
+func getSaveData(){
 	// function : 从数据库查询所有历史数据需要的数据，一天的比特币一分钟行情，以及当天的新闻
 	// param SDChan : 数据管道，把保存历史数据从管道传出去到客户端
 	var result []newsStruct
 	err:=session.DB("crawl").C("govNews").Find(nil).All(&result)
 	if err!=nil{
 		fmt.Println("查询数据库报错 : ",err)
+	}else{
+		dataChan<-result
 	}
 }
 
-func dataMain(){
+func main(){
 	fmt.Println("启动数据服务")
 	// 连接数据库
 	session,_=mgo.Dial(mgoURL)
