@@ -22,7 +22,7 @@
 		{"date":"","open":"","high":"","low":"","close":"","frequency":""}
 	]
 }
-最后一次修改时间：2020-1-9
+最后一次修改时间：2020-1-10
 
 注意：此代码没有做过多的设计，在业务没有确定的情况下，不要做过多的设计，经济最优原则
 在实现功能的条件下，用最短的时间，最简单的实现方法
@@ -61,8 +61,7 @@ func frontServer(context *gin.Context){
 	context.JSON(200,gin.H{
 		"code":200,
 		"success":true,
-		"date":c[0].Date,
-		"title":c[0].Title,
+		"data":c,
 	})
 	go_sync.Wait()
 }
