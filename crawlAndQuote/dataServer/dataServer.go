@@ -22,11 +22,13 @@
 		{"date":"","open":"","high":"","low":"","close":"","frequency":""}
 	]
 }
-最后一次修改时间：2020-1-10
+最后一次修改时间：2020-1-12
 
 注意：此代码没有做过多的设计，在业务没有确定的情况下，不要做过多的设计，经济最优原则
 在实现功能的条件下，用最短的时间，最简单的实现方法
 本来应该是从该程序启动新闻爬虫的，但是在服务器用screen方法另起线程让新闻爬虫运行也一样，所以暂时就使用screen的方式启动爬虫和数据库，服务程序另外再用
+新闻的数据存在mongoDB
+比特币行情数据存在mysql
 screen启动即可
 */
 package main
@@ -35,6 +37,8 @@ import "fmt"
 import "sync"
 import "github.com/gin-gonic/gin"
 import "gopkg.in/mgo.v2"
+import "database/sql"
+import _ "github.com/go-sql-driver/mysql"
 
 // 全局变量们 Global Vars
 var mgoURL string = "0.0.0.0:27017"
@@ -47,6 +51,9 @@ type newsStruct struct{
 	Title string `bson:"title"`
 	Id string `bson:"id"`
 	From int `bson:"from"`
+}
+type quoteStruct struct{
+
 }
 var frontChan chan []newsStruct
 var dataChan chan []newsStruct
@@ -105,6 +112,10 @@ func main(){
 	fmt.Println("启动数据服务")
 	// 连接数据库
 	session,_=mgo.Dial(mgoURL)
+	mysql,err:=sql.Open("mysql","userName:password@tcp(adress:port)/%databasecharset=utf8")
+	if err!=nil{
+		fmt.Println("链接mysql报错 : ",err)
+	}
 	
 	// Engin指针
     router := gin.Default()
