@@ -104,7 +104,7 @@ func getFrontData(fc chan []newsStruct,qc chan []quoteStruct,wg *sync.WaitGroup)
 	}else{
 		fc<-result
 	}
-	rows, err := sqlDB.Query("select * from hbbtcusdt1min", 1200)
+	rows, err := sqlDB.Query("select * from hbbtcusdt1min")
 	if err!=nil{
 		fmt.Println("查询mysql数据库报错 : ",err)
 	}else{
@@ -115,7 +115,10 @@ func getFrontData(fc chan []newsStruct,qc chan []quoteStruct,wg *sync.WaitGroup)
 			var high float32
 			var low float32
 			var close float32
-			err:=rows.Scan(&time,&vol,&open,&high,&low,&close)
+			var id interface{}
+			var amount interface{}
+			var count interface{}
+			err:=rows.Scan(&id,&amount,&count,&open,&high,&low,&close,&vol,&time)
 			if err != nil{
 				fmt.Println("遍历sql数据库报错",err)
 			}
@@ -154,7 +157,7 @@ func main(){
 	fmt.Println("启动数据服务")
 	// 连接数据库
 	session,_=mgo.Dial(mgoURL)
-	mysql,err:=sql.Open("mysql","userName:password@tcp(adress:port)/%databasecharset=utf8")
+	mysql,err:=sql.Open("mysql","root:kunlun2020@tcp(0.0.0.0:3306)/kunlun_quote?charset=utf8")
 	if err!=nil{
 		fmt.Println("链接mysql报错 : ",err)
 		return
