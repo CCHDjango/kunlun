@@ -22,7 +22,7 @@
 		{"date":"","open":"","high":"","low":"","close":"","frequency":""}
 	]
 }
-最后一次修改时间：2020-1-13
+最后一次修改时间：2020-1-15
 
 注意：此代码没有做过多的设计，在业务没有确定的情况下，不要做过多的设计，经济最优原则
 在实现功能的条件下，用最短的时间，最简单的实现方法
@@ -92,19 +92,42 @@ func dataServer(context *gin.Context){
 	})
 }
 
+func orderServer(context *gin.Context){
+	// function : 接受post请求，的发单到交易所
+	// 接受参数
+	id:=context.PostForm("id")
+	direction:=context.PostForm("direction")
+	price:=context.PostForm("price")
+	volume:=context.PostForm("volume")
+	fmt.Println("收到订单 : ",direction,"|",price,"|",volume)
+	if id=="hasaki231495877."{
+		context.JSON(200,gin.H{
+			"status":200,
+			"id":id,
+			"direction":direction,
+			"price":price,
+			"volume":volume,
+		})
+	}else{
+		context.JSON(500,gin.H{
+			"status":500,
+		})
+	}
+}
+
 func getFrontData(fc chan []newsStruct,qc chan []quoteStruct,wg *sync.WaitGroup){
 	// function :从数据库查询前端展示需要的数据，一天比特币的半小时行情，以及当天的新闻
 	defer wg.Done()
 	var result []newsStruct
 	var bar []quoteStruct
-	err:=session.DB("crawl").C("govNews").Find(nil).All(&result)
+	err:=session.DB("crawl").C("govNews").Find(nil).Sort("-date").Limit(50).All(&result)
 	fmt.Println("get front data from database : ",result)
 	if err!=nil{
 		fmt.Println("查询mongo数据库报错 : ",err)
 	}else{
 		fc<-result
 	}
-	rows, err := sqlDB.Query("select * from hbbtcusdt1min")
+	rows, err := sqlDB.Query("select * from hbbtcusdt1min order by id desc limit 800")
 	if err!=nil{
 		fmt.Println("查询mysql数据库报错 : ",err)
 	}else{
@@ -169,6 +192,7 @@ func main(){
 
 	router.GET("/frontServer", frontServer)
 	router.GET("/dataServer",dataServer)
+	router.POST("/orderServer",orderServer)
     // 指定地址和端口号
 	router.Run("0.0.0.0:8888")                    // 如果是云服务改成0.0.0.0:8888
 	
