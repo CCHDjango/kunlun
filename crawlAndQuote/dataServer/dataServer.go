@@ -10,7 +10,8 @@
 消息中心，如果模块报错，发送消息到指定的地方，比如钉钉，微信，邮箱等，如果是已知情况则可以自动重启重新运行，位置情况则发消息手动重启服务
 服务接口有两个，一个是下载一天的数据，包括一天的行情和一天的新闻
 另一个接口是前端请求数据展示的接口，前端展示请求的接口请求的是一天内30分钟的K线，以及全部的新闻舆情数据
-
+orderServer接口：接受外网的请求然后去gateio下单，这个接口只对内部使用，加密方式不上传，密码密钥不上传
+外网用户只要传下单的价格和数量即可，因为是内部使用，所以已经在代码里面做了指定了交易品种，并且做了成交的限制，指定的账户密钥只能交易指定的品种
 请求返回的数据是：
 {
 	"news":[
@@ -30,6 +31,8 @@
 新闻的数据存在mongoDB
 比特币行情数据存在mysql
 screen启动即可
+
+订单的账号加密方式和账户密钥不能上传 ！！！！
 */
 package main
 
@@ -45,7 +48,6 @@ var mgoURL string = "0.0.0.0:27017"
 var session *mgo.Session
 var sqlDB *sql.DB
 var go_sync sync.WaitGroup
-
 type newsStruct struct{
 	Date string `bson:"date"`
 	Content string `bson:"content"`
@@ -100,13 +102,28 @@ func orderServer(context *gin.Context){
 	price:=context.PostForm("price")
 	volume:=context.PostForm("volume")
 	fmt.Println("收到订单 : ",direction,"|",price,"|",volume)
-	if id=="hasaki231495877."{
+
+	if len(id)<2 || len(direction)<2 || len(price)<2 || len(volume)==0{
+		// 参数不全的情况,返回错误码回去
+		context.JSON(401,gin.H{
+			"status":401,
+			"msg":"参数有误",
+			"id":id,
+			"direction":direction,
+			"price":price,
+			"volume":volume,
+		})
+		return
+	}
+
+	if id=="--"{
 		context.JSON(200,gin.H{
 			"status":200,
 			"id":id,
 			"direction":direction,
 			"price":price,
 			"volume":volume,
+			"orderResult":"",                          // TODO : 订单回报或者成交回报信息返回给用户
 		})
 	}else{
 		context.JSON(500,gin.H{
